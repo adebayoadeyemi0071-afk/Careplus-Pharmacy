@@ -7,6 +7,7 @@ import "./globals.css";
 import Navbar from "@/components/navbar/navbar";
 import CartDrawer from "@/components/cart/cart-drawer";
 import Footer from "@/components/footer/footer";
+import CookieConsent from "@/components/cookies/cookie-consent";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -43,6 +44,8 @@ export default function RootLayout({
         {children}
 
         <Footer />
+
+        <CookieConsent />
       </body>
     </html>
   );
