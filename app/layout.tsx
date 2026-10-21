@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 
@@ -18,6 +19,11 @@ export const metadata: Metadata = {
   title: "CarePlus Pharmacy",
   description:
     "Trusted medicines, healthcare products and everyday wellness essentials.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
