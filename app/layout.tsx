@@ -20,10 +20,15 @@ export const metadata: Metadata = {
   title: "CarePlus Pharmacy",
   description:
     "Trusted medicines, healthcare products and everyday wellness essentials.",
+
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
     apple: "/icon.svg",
+  },
+
+  verification: {
+    google: "zE_kiA4MQcOr4EyYBgSwJ_yMOJbaYB54mDOj77ihxZc",
   },
 };
 
