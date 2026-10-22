@@ -12,6 +12,18 @@ import CookieConsent from "@/components/cookies/cookie-consent";
 const siteUrl = "https://careplus-pharmacy-nu.vercel.app";
 const shareImage = `${siteUrl}/images/careplus-share.png`;
 
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": `${siteUrl}/#website`,
+  url: `${siteUrl}/`,
+  name: "CarePlus Pharmacy",
+  alternateName: "CarePlus",
+  description:
+    "CarePlus Pharmacy's healthcare product catalogue and online shopping experience.",
+  inLanguage: "en-NG",
+};
+
 const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-manrope",
@@ -58,12 +70,7 @@ export const metadata: Metadata = {
     title: "CarePlus Pharmacy | Your Health, Our Priority",
     description:
       "Explore healthcare products and everyday wellness essentials with CarePlus Pharmacy.",
-    images: [
-      {
-        url: shareImage,
-        alt: "CarePlus Pharmacy — Your Health, Our Priority",
-      },
-    ],
+    images: [shareImage],
   },
 };
 
@@ -77,6 +84,13 @@ export default function RootLayout({
       <body
         className={`${manrope.variable} bg-[#FAFCFB] text-[#102A26] antialiased`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteJsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
+
         <Navbar />
 
         <CartDrawer />
