@@ -1,3 +1,5 @@
+
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -6,23 +8,52 @@ import {
   Droplets,
   HeartPulse,
   Leaf,
+  Pill,
   ShieldPlus,
   Sparkles,
-  type LucideIcon,
 } from "lucide-react";
 
 import { categories, products } from "@/data/products";
 
-type ShopCategory = Exclude<(typeof categories)[number], "All Products">;
+const siteUrl = "https://careplus-pharmacy-nu.vercel.app";
 
-type CategoryDetails = {
-  description: string;
-  icon: LucideIcon;
-  accent: string;
-  iconColor: string;
+export const metadata: Metadata = {
+  title: "Healthcare Product Categories",
+  description:
+    "Explore CarePlus Pharmacy categories including pain relief, vitamins and supplements, personal care, baby and family care, digestive health, cold and flu, and prescription medicines.",
+
+  alternates: {
+    canonical: "/categories",
+  },
+
+  openGraph: {
+    type: "website",
+    url: `${siteUrl}/categories`,
+    siteName: "CarePlus Pharmacy",
+    locale: "en_NG",
+    title: "Healthcare Product Categories | CarePlus Pharmacy",
+    description:
+      "Browse healthcare and wellness product categories on CarePlus Pharmacy.",
+    images: [
+      {
+        url: `${siteUrl}/images/careplus-share.png`,
+        width: 1200,
+        height: 630,
+        alt: "CarePlus Pharmacy — Your Health, Our Priority",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Healthcare Product Categories | CarePlus Pharmacy",
+    description:
+      "Browse healthcare and wellness product categories on CarePlus Pharmacy.",
+    images: [`${siteUrl}/images/careplus-share.png`],
+  },
 };
 
-const categoryDetails: Record<ShopCategory, CategoryDetails> = {
+const categoryDetails = {
   "Pain Relief": {
     description:
       "Everyday products for temporary relief from common aches, pains and discomfort.",
@@ -73,15 +104,15 @@ const categoryDetails: Record<ShopCategory, CategoryDetails> = {
 
   "Prescription Medicines": {
     description:
-      "Medicines that require appropriate prescription review and professional guidance.",
-    icon: ShieldPlus,
-    accent: "bg-[#E8F0FE]",
-    iconColor: "text-[#315EAA]",
+      "Prescription-related products subject to applicable prescription requirements and professional review.",
+    icon: Pill,
+    accent: "bg-[#E5F5F0]",
+    iconColor: "text-[#086B57]",
   },
 } as const;
 
 const shopCategories = categories.filter(
-  (category): category is ShopCategory => category !== "All Products"
+  (category) => category !== "All Products"
 );
 
 export default function CategoriesPage() {
@@ -157,9 +188,7 @@ export default function CategoriesPage() {
               return (
                 <Link
                   key={category}
-                  href={`/shop?category=${encodeURIComponent(
-                    category
-                  )}`}
+                  href={`/shop?category=${encodeURIComponent(category)}`}
                   className="group relative overflow-hidden rounded-[1.75rem] border border-[#DDE9E5] bg-white p-6 shadow-[0_12px_35px_rgba(6,61,53,0.04)] transition duration-300 hover:-translate-y-1 hover:border-[#B9D8CE] hover:shadow-[0_18px_45px_rgba(6,61,53,0.08)] sm:p-7"
                 >
                   <div className="flex items-start justify-between gap-5">
@@ -191,9 +220,7 @@ export default function CategoriesPage() {
                   <div className="mt-6 flex items-center justify-between border-t border-[#DDE9E5] pt-5">
                     <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#8A9A96]">
                       {productCount}{" "}
-                      {productCount === 1
-                        ? "product"
-                        : "products"}
+                      {productCount === 1 ? "product" : "products"}
                     </span>
 
                     <span className="text-sm font-extrabold text-[#086B57]">
