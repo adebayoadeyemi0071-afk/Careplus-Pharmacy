@@ -10,7 +10,7 @@ import Footer from "@/components/footer/footer";
 import CookieConsent from "@/components/cookies/cookie-consent";
 
 const siteUrl = "https://careplus-pharmacy-nu.vercel.app";
-const shareImage = "/images/careplus-share.png";
+const shareImage = `${siteUrl}/images/careplus-share.png`;
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -23,12 +23,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
 
   title: {
-    default: "CarePlus Pharmacy",
+    default: "CarePlus Pharmacy | Your Health, Our Priority",
     template: "%s | CarePlus Pharmacy",
   },
 
   description:
-    "Explore CarePlus Pharmacy's healthcare product categories, product information, and shopping experience.",
+    "Explore CarePlus Pharmacy's healthcare product categories, product information, and everyday wellness essentials.",
 
   applicationName: "CarePlus Pharmacy",
 
@@ -38,7 +38,6 @@ export const metadata: Metadata = {
 
   openGraph: {
     type: "website",
-    url: siteUrl,
     siteName: "CarePlus Pharmacy",
     locale: "en_NG",
     title: "CarePlus Pharmacy | Your Health, Our Priority",
@@ -47,6 +46,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: shareImage,
+        width: 1200,
+        height: 630,
         alt: "CarePlus Pharmacy — Your Health, Our Priority",
       },
     ],
@@ -57,7 +58,12 @@ export const metadata: Metadata = {
     title: "CarePlus Pharmacy | Your Health, Our Priority",
     description:
       "Explore healthcare products and everyday wellness essentials with CarePlus Pharmacy.",
-    images: [shareImage],
+    images: [
+      {
+        url: shareImage,
+        alt: "CarePlus Pharmacy — Your Health, Our Priority",
+      },
+    ],
   },
 };
 
