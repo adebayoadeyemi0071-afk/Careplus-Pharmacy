@@ -9,6 +9,9 @@ import CartDrawer from "@/components/cart/cart-drawer";
 import Footer from "@/components/footer/footer";
 import CookieConsent from "@/components/cookies/cookie-consent";
 
+const siteUrl = "https://careplus-pharmacy-nu.vercel.app";
+const shareImage = "/images/careplus-share.png";
+
 const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-manrope",
@@ -17,18 +20,44 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "CarePlus Pharmacy",
-  description:
-    "Trusted medicines, healthcare products and everyday wellness essentials.",
+  metadataBase: new URL(siteUrl),
 
-  icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+  title: {
+    default: "CarePlus Pharmacy",
+    template: "%s | CarePlus Pharmacy",
   },
+
+  description:
+    "Explore CarePlus Pharmacy's healthcare product categories, product information, and shopping experience.",
+
+  applicationName: "CarePlus Pharmacy",
 
   verification: {
     google: "PBw2X5xwWePAEAu8v8SYk9KKmUxs37nvXx4LMmcpRcA",
+  },
+
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    siteName: "CarePlus Pharmacy",
+    locale: "en_NG",
+    title: "CarePlus Pharmacy | Your Health, Our Priority",
+    description:
+      "Explore healthcare products and everyday wellness essentials with CarePlus Pharmacy.",
+    images: [
+      {
+        url: shareImage,
+        alt: "CarePlus Pharmacy — Your Health, Our Priority",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "CarePlus Pharmacy | Your Health, Our Priority",
+    description:
+      "Explore healthcare products and everyday wellness essentials with CarePlus Pharmacy.",
+    images: [shareImage],
   },
 };
 
