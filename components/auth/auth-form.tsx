@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { type FormEvent, useState } from "react";
 import {
   Apple,
   ArrowRight,
@@ -22,13 +22,11 @@ interface AuthFormProps {
 
 export default function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
-
   const signIn = useAuthStore((state) => state.signIn);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -36,40 +34,45 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const isSignUp = mode === "signup";
 
   /*
-   * Determines where the customer should go after authentication.
-   *
-   * Examples:
-   *
-   * /auth/sign-in
-   *      -> /account
-   *
-   * /auth/sign-in?redirect=%2Fcheckout
-   *      -> /checkout
+   * Only allow redirects to internal application paths.
+   * This prevents external redirect URLs.
    */
-  const getRedirectPath = () => {
+  const getRedirectPath = (): string => {
     if (typeof window === "undefined") {
       return "/account";
     }
 
     const params = new URLSearchParams(window.location.search);
-
     const redirect = params.get("redirect");
 
-    /*
-     * Only allow internal paths.
-     *
-     * This prevents a redirect such as:
-     * https://malicious-site.com
-     */
     if (
       redirect &&
       redirect.startsWith("/") &&
-      !redirect.startsWith("//")
+      !redirect.startsWith("//") &&
+      !redirect.startsWith("/\\")
     ) {
       return redirect;
     }
 
     return "/account";
+  };
+
+  /*
+   * Keep the redirect destination when the customer switches
+   * between the sign-in and sign-up pages.
+   */
+  const getAuthSwitchUrl = () => {
+    const destination = getRedirectPath();
+
+    if (destination === "/account") {
+      return isSignUp ? "/auth/sign-in" : "/auth/sign-up";
+    }
+
+    const target = isSignUp
+      ? "/auth/sign-in"
+      : "/auth/sign-up";
+
+    return `${target}?redirect=${encodeURIComponent(destination)}`;
   };
 
   const completeAuthentication = (
@@ -87,14 +90,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
     router.push(getRedirectPath());
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
-
     setError("");
 
-    /*
-     * Basic validation
-     */
     if (isSignUp && !fullName.trim()) {
       setError("Please enter your full name.");
       return;
@@ -105,7 +106,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       return;
     }
 
-    if (!email.includes("@")) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError("Please enter a valid email address.");
       return;
     }
@@ -122,25 +123,29 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
     setIsLoading(true);
 
-    /*
-     * Temporary frontend authentication.
-     *
-     * This will later be replaced with the real CarePlus
-     * backend authentication system.
-     */
-    await new Promise((resolve) => {
-      setTimeout(resolve, 900);
-    });
+    try {
+      /*
+       * Temporary frontend authentication.
+       * Replace this simulation with real backend authentication
+       * before using the application for real customer accounts.
+       */
+      await new Promise((resolve) => {
+        setTimeout(resolve, 900);
+      });
 
-    const name = isSignUp
-      ? fullName.trim()
-      : email.split("@")[0];
+      const normalizedEmail = email.trim().toLowerCase();
 
-    completeAuthentication(
-      "email",
-      name,
-      email.trim().toLowerCase()
-    );
+      const name = isSignUp
+        ? fullName.trim()
+        : normalizedEmail.split("@")[0];
+
+      completeAuthentication("email", name, normalizedEmail);
+    } catch {
+      setError(
+        "We couldn't complete sign-in. Please try again."
+      );
+      setIsLoading(false);
+    }
   };
 
   const handleSocialAuth = async (
@@ -149,29 +154,34 @@ export default function AuthForm({ mode }: AuthFormProps) {
     setError("");
     setIsLoading(true);
 
-    /*
-     * Temporary demo social authentication.
-     *
-     * Real Google/Apple OAuth will be connected when
-     * the backend authentication system is built.
-     */
-    await new Promise((resolve) => {
-      setTimeout(resolve, 900);
-    });
+    try {
+      /*
+       * Demo social authentication only.
+       * This does not connect to real Google or Apple OAuth.
+       */
+      await new Promise((resolve) => {
+        setTimeout(resolve, 900);
+      });
 
-    const providerName =
-      provider === "google" ? "Google User" : "Apple User";
+      const providerName =
+        provider === "google" ? "Google User" : "Apple User";
 
-    const providerEmail =
-      provider === "google"
-        ? "google-user@careplus.demo"
-        : "apple-user@careplus.demo";
+      const providerEmail =
+        provider === "google"
+          ? "google-user@careplus.demo"
+          : "apple-user@careplus.demo";
 
-    completeAuthentication(
-      provider,
-      providerName,
-      providerEmail
-    );
+      completeAuthentication(
+        provider,
+        providerName,
+        providerEmail
+      );
+    } catch {
+      setError(
+        "We couldn't complete sign-in. Please try again."
+      );
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -213,7 +223,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
           onClick={() => handleSocialAuth("google")}
           className="flex h-12 items-center justify-center gap-2 rounded-xl border border-[#DDE9E5] bg-white px-4 text-sm font-extrabold text-[#102A26] transition hover:border-[#AFCBC2] hover:bg-[#F1F8F5] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {/* Google icon */}
           <svg
             width="18"
             height="18"
@@ -248,7 +257,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
           className="flex h-12 items-center justify-center gap-2 rounded-xl border border-[#DDE9E5] bg-white px-4 text-sm font-extrabold text-[#102A26] transition hover:border-[#AFCBC2] hover:bg-[#F1F8F5] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Apple className="h-[18px] w-[18px]" />
-
           Apple
         </button>
       </div>
@@ -266,7 +274,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
       {/* Error */}
       {error && (
-        <div className="mb-5 rounded-xl border border-[#F0C7C7] bg-[#FFF6F6] px-4 py-3">
+        <div
+          role="alert"
+          className="mb-5 rounded-xl border border-[#F0C7C7] bg-[#FFF6F6] px-4 py-3"
+        >
           <p className="text-sm font-semibold leading-5 text-[#B43B3B]">
             {error}
           </p>
@@ -320,9 +331,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               id="email"
               type="email"
               value={email}
-              onChange={(event) =>
-                setEmail(event.target.value)
-              }
+              onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
               autoComplete="email"
               disabled={isLoading}
@@ -358,9 +367,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               id="password"
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
+              onChange={(event) => setPassword(event.target.value)}
               placeholder={
                 isSignUp
                   ? "Create a password"
@@ -380,9 +387,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               }
               disabled={isLoading}
               aria-label={
-                showPassword
-                  ? "Hide password"
-                  : "Show password"
+                showPassword ? "Hide password" : "Show password"
               }
               className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[#8A9A96] transition hover:bg-[#F1F8F5] hover:text-[#086B57]"
             >
@@ -410,17 +415,11 @@ export default function AuthForm({ mode }: AuthFormProps) {
           {isLoading ? (
             <>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-
-              {isSignUp
-                ? "Creating account..."
-                : "Signing in..."}
+              {isSignUp ? "Creating account..." : "Signing in..."}
             </>
           ) : (
             <>
-              {isSignUp
-                ? "Create Account"
-                : "Sign In"}
-
+              {isSignUp ? "Create Account" : "Sign In"}
               <ArrowRight className="h-4 w-4" />
             </>
           )}
@@ -433,11 +432,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           ? "Already have an account?"
           : "Don't have an account?"}{" "}
         <Link
-          href={
-            isSignUp
-              ? "/auth/sign-in"
-              : "/auth/sign-up"
-          }
+          href={getAuthSwitchUrl()}
           className="font-extrabold text-[#086B57] transition hover:text-[#063D35]"
         >
           {isSignUp ? "Sign in" : "Create one"}
@@ -451,7 +446,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           href="/terms"
           className="font-bold text-[#5F706C] underline underline-offset-2 hover:text-[#086B57]"
         >
-          Terms & Conditions
+          Terms &amp; Conditions
         </Link>{" "}
         and{" "}
         <Link
