@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -94,6 +93,100 @@ function MedicineAuthenticitySection() {
   );
 }
 
+type SavedCheckoutOrder = Record<string, unknown>;
+
+function normalizeSavedOrder(value: unknown): PendingOrder | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const saved = value as SavedCheckoutOrder;
+
+  const details = (
+    saved.customer ?? saved.deliveryDetails
+  ) as Record<string, unknown> | undefined;
+
+  const items = Array.isArray(saved.items) ? saved.items : [];
+
+  const reference =
+    saved.orderReference ?? saved.orderNumber ?? saved.id;
+
+  const createdAt = saved.createdAt;
+
+  if (
+    typeof reference !== "string" ||
+    !reference.trim() ||
+    typeof createdAt !== "string" ||
+    items.length === 0 ||
+    !details
+  ) {
+    return null;
+  }
+
+  const customer = {
+    fullName:
+      typeof details.fullName === "string"
+        ? details.fullName
+        : "",
+    email:
+      typeof details.email === "string"
+        ? details.email
+        : "",
+    phone:
+      typeof details.phone === "string"
+        ? details.phone
+        : "",
+    address:
+      typeof details.address === "string"
+        ? details.address
+        : "",
+    city:
+      typeof details.city === "string"
+        ? details.city
+        : "",
+    state:
+      typeof details.state === "string"
+        ? details.state
+        : "",
+  };
+
+  const deliveryValue = saved.delivery ?? saved.deliveryFee ?? 0;
+
+  const prescriptionStatus =
+    typeof saved.prescriptionStatus === "string"
+      ? saved.prescriptionStatus
+      : items.some(
+          (item) =>
+            Boolean(item) &&
+            typeof item === "object" &&
+            (item as Record<string, unknown>)
+              .requiresPrescription === true
+        )
+        ? "pending"
+        : "not-required";
+
+  // Map the checkout page's localStorage fields to the
+  // structure expected by the order-success page.
+  return {
+    orderReference: reference,
+    createdAt,
+    customer,
+    items,
+    subtotal: Number(saved.subtotal ?? 0),
+    delivery: Number(deliveryValue),
+    total: Number(saved.total ?? 0),
+    deliveryMethod:
+      saved.deliveryMethod === "express"
+        ? "express"
+        : "standard",
+    prescriptionStatus,
+    prescriptionReference:
+      typeof saved.prescriptionReference === "string"
+        ? saved.prescriptionReference
+        : undefined,
+  } as PendingOrder;
+}
+
 export default function OrderSuccessPage() {
   const pendingOrder = useCheckoutStore(
     (state) => state.pendingOrder
@@ -103,14 +196,66 @@ export default function OrderSuccessPage() {
     (state) => state.clearCart
   );
 
+  const [storedOrder, setStoredOrder] =
+    useState<PendingOrder | null>(null);
+
+  const [hasLoadedStoredOrder, setHasLoadedStoredOrder] =
+    useState(false);
+
   const [isGenerating, setIsGenerating] = useState(false);
+
   const [receiptError, setReceiptError] = useState("");
 
+  // Restore the order saved by checkout.
+  // The latest-order key is checked first, then the order history.
   useEffect(() => {
-    if (pendingOrder) {
+    try {
+      const latestOrder = window.localStorage.getItem(
+        "careplus-latest-order"
+      );
+
+      if (latestOrder) {
+        const normalized = normalizeSavedOrder(
+          JSON.parse(latestOrder)
+        );
+
+        if (normalized) {
+          setStoredOrder(normalized);
+          setHasLoadedStoredOrder(true);
+          return;
+        }
+      }
+
+      const allOrders = window.localStorage.getItem(
+        "careplus-orders"
+      );
+
+      if (allOrders) {
+        const parsed: unknown = JSON.parse(allOrders);
+
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setStoredOrder(normalizeSavedOrder(parsed[0]));
+        }
+      }
+    } catch (error) {
+      console.error(
+        "Could not restore the saved CarePlus order:",
+        error
+      );
+    } finally {
+      setHasLoadedStoredOrder(true);
+    }
+  }, []);
+
+  // Prefer the saved checkout order, falling back to the
+  // existing Zustand order if no saved order is available.
+  const order = storedOrder ?? pendingOrder;
+
+  useEffect(() => {
+    if (order) {
       clearCart();
     }
-  }, [pendingOrder, clearCart]);
+  }, [order, clearCart]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -142,6 +287,7 @@ export default function OrderSuccessPage() {
 
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
+
       const margin = 20;
       const contentWidth = pageWidth - margin * 2;
 
@@ -167,6 +313,7 @@ export default function OrderSuccessPage() {
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(16, 42, 38);
+
       pdf.text(
         "Healthcare and everyday wellness",
         pageWidth - margin,
@@ -191,7 +338,12 @@ export default function OrderSuccessPage() {
       y += 7;
 
       pdf.setDrawColor(221, 233, 229);
-      pdf.line(margin, y, pageWidth - margin, y);
+      pdf.line(
+        margin,
+        y,
+        pageWidth - margin,
+        y
+      );
 
       y += 10;
 
@@ -207,6 +359,7 @@ export default function OrderSuccessPage() {
 
       pdf.setFont("helvetica", "bold");
       pdf.setTextColor(16, 42, 38);
+
       pdf.text(order.orderReference, margin, y);
       pdf.text(formatDate(order.createdAt), 110, y);
 
@@ -259,6 +412,7 @@ export default function OrderSuccessPage() {
       y += 8;
 
       pdf.setFillColor(241, 248, 245);
+
       pdf.roundedRect(
         margin,
         y - 5,
@@ -271,12 +425,17 @@ export default function OrderSuccessPage() {
 
       pdf.setFontSize(8);
       pdf.setTextColor(95, 112, 108);
+
       pdf.text("PRODUCT", margin + 3, y);
       pdf.text("QTY", 125, y);
       pdf.text("UNIT PRICE", 145, y);
-      pdf.text("TOTAL", pageWidth - margin - 3, y, {
-        align: "right",
-      });
+
+      pdf.text(
+        "TOTAL",
+        pageWidth - margin - 3,
+        y,
+        { align: "right" }
+      );
 
       y += 9;
 
@@ -299,11 +458,13 @@ export default function OrderSuccessPage() {
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(8.5);
         pdf.setTextColor(16, 42, 38);
+
         pdf.text(wrappedName, margin + 3, y);
 
         if (item.requiresPrescription) {
           pdf.setFontSize(7);
           pdf.setTextColor(154, 106, 0);
+
           pdf.text(
             "Prescription required",
             margin + 3,
@@ -313,10 +474,12 @@ export default function OrderSuccessPage() {
 
         pdf.setFontSize(8.5);
         pdf.setTextColor(16, 42, 38);
+
         pdf.text(String(item.quantity), 127, y);
         pdf.text(formatCurrency(item.price), 145, y);
 
         pdf.setFont("helvetica", "bold");
+
         pdf.text(
           formatCurrency(item.price * item.quantity),
           pageWidth - margin - 3,
@@ -327,6 +490,7 @@ export default function OrderSuccessPage() {
         y += itemHeight;
 
         pdf.setDrawColor(238, 243, 241);
+
         pdf.line(
           margin,
           y - 3,
@@ -346,9 +510,11 @@ export default function OrderSuccessPage() {
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
       pdf.setTextColor(95, 112, 108);
+
       pdf.text("Subtotal", labelX, y);
 
       pdf.setTextColor(16, 42, 38);
+
       pdf.text(
         formatCurrency(order.subtotal),
         valueX,
@@ -362,6 +528,7 @@ export default function OrderSuccessPage() {
       pdf.text("Delivery", labelX, y);
 
       pdf.setTextColor(16, 42, 38);
+
       pdf.text(
         order.delivery === 0
           ? "FREE"
@@ -381,7 +548,9 @@ export default function OrderSuccessPage() {
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(12);
       pdf.setTextColor(8, 107, 87);
+
       pdf.text("Total", labelX, y);
+
       pdf.text(
         formatCurrency(order.total),
         valueX,
@@ -430,6 +599,7 @@ export default function OrderSuccessPage() {
       ensureSpace(35);
 
       pdf.setFillColor(255, 249, 234);
+
       pdf.roundedRect(
         margin,
         y,
@@ -443,6 +613,7 @@ export default function OrderSuccessPage() {
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(9);
       pdf.setTextColor(111, 77, 0);
+
       pdf.text(
         "Important payment information",
         margin + 5,
@@ -468,6 +639,7 @@ export default function OrderSuccessPage() {
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
       pdf.setTextColor(130, 145, 141);
+
       pdf.text(
         "Thank you for choosing CarePlus Pharmacy.",
         pageWidth / 2,
@@ -494,14 +666,26 @@ export default function OrderSuccessPage() {
   };
 
   const hasPrescriptionItems =
-    pendingOrder?.items.some(
+    order?.items.some(
       (item) => item.requiresPrescription
     ) ?? false;
 
   return (
     <main className="min-h-[80vh] bg-[#FAFCFB] px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
       <div className="mx-auto max-w-5xl">
-        {!pendingOrder ? (
+        {!order && !hasLoadedStoredOrder ? (
+          <section className="rounded-[2rem] border border-[#DDE9E5] bg-white px-5 py-10 text-center shadow-[0_18px_50px_rgba(6,61,53,0.06)] sm:px-10">
+            <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-[#DDE9E5] border-t-[#086B57]" />
+
+            <h1 className="mt-6 text-2xl font-extrabold text-[#102A26]">
+              Retrieving your order
+            </h1>
+
+            <p className="mt-3 text-sm leading-6 text-[#5F706C]">
+              Please wait while we load your order summary.
+            </p>
+          </section>
+        ) : !order ? (
           <section className="rounded-[2rem] border border-[#DDE9E5] bg-white px-5 py-10 text-center shadow-[0_18px_50px_rgba(6,61,53,0.06)] sm:px-10">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#E5F5F0]">
               <Package
@@ -516,10 +700,8 @@ export default function OrderSuccessPage() {
             </h1>
 
             <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-[#5F706C] sm:text-base">
-             We couldn&apos;t find a recent order in this session.
-              Your order summary is stored temporarily in this
-              frontend prototype and may no longer be available
-              after a page refresh.
+              We couldn&apos;t find an order saved in this browser.
+              Place an order from checkout before opening this page.
             </p>
 
             <Link
@@ -561,11 +743,11 @@ export default function OrderSuccessPage() {
                 </span>
 
                 <span className="mt-1 text-lg font-extrabold text-[#086B57]">
-                  {pendingOrder.orderReference}
+                  {order.orderReference}
                 </span>
 
                 <span className="mt-2 text-xs text-[#71817D]">
-                  {formatDate(pendingOrder.createdAt)}
+                  {formatDate(order.createdAt)}
                 </span>
               </div>
 
@@ -608,10 +790,10 @@ export default function OrderSuccessPage() {
                         authorise dispensing.
                       </p>
 
-                      {pendingOrder.prescriptionReference && (
+                      {order.prescriptionReference && (
                         <p className="mt-3 break-all text-xs font-bold text-[#6F4D00]">
                           Review reference:{" "}
-                          {pendingOrder.prescriptionReference}
+                          {order.prescriptionReference}
                         </p>
                       )}
                     </div>
@@ -623,9 +805,7 @@ export default function OrderSuccessPage() {
               <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
                 <button
                   type="button"
-                  onClick={() =>
-                    generateOrderSummary(pendingOrder)
-                  }
+                  onClick={() => generateOrderSummary(order)}
                   disabled={isGenerating}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-[#086B57] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#063D35] disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -654,111 +834,157 @@ export default function OrderSuccessPage() {
               )}
             </section>
 
-            {/* MEDICINE VERIFICATION NOW APPEARS HERE */}
+            {/* MEDICINE VERIFICATION */}
             <MedicineAuthenticitySection />
 
             {/* ORDER DETAILS */}
             <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
-              {/* ITEMS AND TOTALS */}
-              <section className="rounded-[1.75rem] border border-[#DDE9E5] bg-white p-5 shadow-[0_12px_35px_rgba(6,61,53,0.04)] sm:p-7">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl font-extrabold text-[#102A26]">
-                      Order Summary
-                    </h2>
+              <div className="space-y-6">
+                {/* ORDER SUMMARY */}
+                <section className="rounded-[1.75rem] border border-[#DDE9E5] bg-white p-5 shadow-[0_12px_35px_rgba(6,61,53,0.04)] sm:p-7">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-extrabold text-[#102A26]">
+                        Order Summary
+                      </h2>
 
-                    <p className="mt-1 text-sm text-[#5F706C]">
-                      {pendingOrder.items.length} product
-                      {pendingOrder.items.length === 1
-                        ? ""
-                        : "s"}
-                    </p>
-                  </div>
-
-                  <Package
-                    size={23}
-                    className="text-[#086B57]"
-                  />
-                </div>
-
-                <div className="mt-6 divide-y divide-[#DDE9E5]">
-                  {pendingOrder.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex gap-4 py-4 first:pt-0 last:pb-0"
-                    >
-                      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#F1F8F5]">
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          fill
-                          sizes="80px"
-                          className="object-contain p-2"
-                        />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-sm font-bold text-[#102A26]">
-                          {item.name}
-                        </h3>
-
-                        <p className="mt-1 text-xs text-[#5F706C]">
-                          Quantity: {item.quantity}
-                        </p>
-
-                        {item.requiresPrescription && (
-                          <span className="mt-2 inline-flex rounded-full bg-[#FFF7E5] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[#9A6A00]">
-                            Prescription Only
-                          </span>
-                        )}
-
-                        <p className="mt-2 text-sm font-extrabold text-[#086B57]">
-                          {formatCurrency(
-                            item.price * item.quantity
-                          )}
-                        </p>
-                      </div>
+                      <p className="mt-1 text-sm text-[#5F706C]">
+                        {order.items.length} product
+                        {order.items.length === 1 ? "" : "s"}
+                      </p>
                     </div>
-                  ))}
-                </div>
 
-                <div className="mt-6 border-t border-[#DDE9E5] pt-5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-[#5F706C]">
-                      Subtotal
-                    </span>
-
-                    <span className="font-semibold text-[#102A26]">
-                      {formatCurrency(pendingOrder.subtotal)}
-                    </span>
+                    <Package
+                      size={23}
+                      className="text-[#086B57]"
+                    />
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between text-sm">
-                    <span className="text-[#5F706C]">
-                      Delivery
-                    </span>
+                  <div className="mt-6 divide-y divide-[#DDE9E5]">
+                    {order.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex gap-4 py-4 first:pt-0 last:pb-0"
+                      >
+                        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#F1F8F5]">
+                          <Image
+                            src={item.image}
+                            alt={item.name}
+                            fill
+                            sizes="80px"
+                            className="object-contain p-2"
+                          />
+                        </div>
 
-                    <span className="font-semibold text-[#102A26]">
-                      {pendingOrder.delivery === 0
-                        ? "FREE"
-                        : formatCurrency(pendingOrder.delivery)}
-                    </span>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm font-bold text-[#102A26]">
+                            {item.name}
+                          </h3>
+
+                          <p className="mt-1 text-xs text-[#5F706C]">
+                            Quantity: {item.quantity}
+                          </p>
+
+                          {item.requiresPrescription && (
+                            <span className="mt-2 inline-flex rounded-full bg-[#FFF7E5] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[#9A6A00]">
+                              Prescription Only
+                            </span>
+                          )}
+
+                          <p className="mt-2 text-sm font-extrabold text-[#086B57]">
+                            {formatCurrency(
+                              item.price * item.quantity
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between border-t border-[#DDE9E5] pt-4">
-                    <span className="font-extrabold text-[#102A26]">
-                      Total
-                    </span>
+                  <div className="mt-6 border-t border-[#DDE9E5] pt-5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[#5F706C]">
+                        Subtotal
+                      </span>
 
-                    <span className="text-xl font-extrabold text-[#086B57]">
-                      {formatCurrency(pendingOrder.total)}
-                    </span>
+                      <span className="font-semibold text-[#102A26]">
+                        {formatCurrency(order.subtotal)}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="text-[#5F706C]">
+                        Delivery
+                      </span>
+
+                      <span className="font-semibold text-[#102A26]">
+                        {order.delivery === 0
+                          ? "FREE"
+                          : formatCurrency(order.delivery)}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-[#DDE9E5] pt-4">
+                      <span className="font-extrabold text-[#102A26]">
+                        Total
+                      </span>
+
+                      <span className="text-xl font-extrabold text-[#086B57]">
+                        {formatCurrency(order.total)}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </section>
+
+                  <button
+                    type="button"
+                    onClick={() => generateOrderSummary(order)}
+                    disabled={isGenerating}
+                    className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#086B57] px-5 py-3 text-sm font-extrabold text-[#086B57] transition hover:bg-[#F1F8F5] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Download size={17} />
+                    {isGenerating
+                      ? "Generating PDF..."
+                      : "Download Order Summary"}
+                  </button>
+                </section>
+
+                {/* CUSTOMER CARE — directly below Order Summary */}
+                <section className="rounded-[1.75rem] border border-[#DDE9E5] bg-white p-5 shadow-[0_12px_35px_rgba(6,61,53,0.04)] sm:p-7">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#E5F5F0]">
+                      <ShieldCheck className="h-6 w-6 text-[#086B57]" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#086B57]">
+                        Customer support
+                      </p>
+
+                      <h2 className="mt-2 text-xl font-extrabold text-[#102A26]">
+                        Need help with your order?
+                      </h2>
+
+                      <p className="mt-2 text-sm leading-6 text-[#5F706C]">
+                        Contact CarePlus Customer Care for questions
+                        about your order, delivery details, prescription
+                        process, or product information. Keep your order
+                        reference handy when contacting us.
+                      </p>
+
+                      <Link
+                        href="/customer-care"
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#086B57] px-5 py-3 text-sm font-extrabold text-white transition hover:bg-[#063D35]"
+                      >
+                        Contact Customer Care
+                        <ArrowRight size={16} />
+                      </Link>
+                    </div>
+                  </div>
+                </section>
+              </div>
 
               {/* DELIVERY DETAILS */}
-              <section className="rounded-[1.75rem] border border-[#DDE9E5] bg-white p-5 shadow-[0_12px_35px_rgba(6,61,53,0.04)] sm:p-7">
+              <section className="h-fit rounded-[1.75rem] border border-[#DDE9E5] bg-white p-5 shadow-[0_12px_35px_rgba(6,61,53,0.04)] sm:p-7">
                 <h2 className="text-xl font-extrabold text-[#102A26]">
                   Delivery Details
                 </h2>
@@ -770,7 +996,7 @@ export default function OrderSuccessPage() {
                     </p>
 
                     <p className="mt-1 text-sm font-semibold text-[#102A26]">
-                      {pendingOrder.customer.fullName}
+                      {order.customer.fullName}
                     </p>
                   </div>
 
@@ -780,7 +1006,7 @@ export default function OrderSuccessPage() {
                     </p>
 
                     <p className="mt-1 break-all text-sm font-semibold text-[#102A26]">
-                      {pendingOrder.customer.email}
+                      {order.customer.email}
                     </p>
                   </div>
 
@@ -790,7 +1016,7 @@ export default function OrderSuccessPage() {
                     </p>
 
                     <p className="mt-1 text-sm font-semibold text-[#102A26]">
-                      {pendingOrder.customer.phone}
+                      {order.customer.phone}
                     </p>
                   </div>
 
@@ -800,10 +1026,10 @@ export default function OrderSuccessPage() {
                     </p>
 
                     <p className="mt-1 text-sm leading-6 text-[#102A26]">
-                      {pendingOrder.customer.address}
+                      {order.customer.address}
                       <br />
-                      {pendingOrder.customer.city},{" "}
-                      {pendingOrder.customer.state}
+                      {order.customer.city},{" "}
+                      {order.customer.state}
                     </p>
                   </div>
 
@@ -813,7 +1039,7 @@ export default function OrderSuccessPage() {
                     </p>
 
                     <p className="mt-1 text-sm font-semibold text-[#102A26]">
-                      {pendingOrder.deliveryMethod === "express"
+                      {order.deliveryMethod === "express"
                         ? "Express Delivery"
                         : "Standard Delivery"}
                     </p>
@@ -829,10 +1055,9 @@ export default function OrderSuccessPage() {
                         </p>
 
                         <p className="mt-2 text-xs leading-5 text-[#5F706C]">
-                          Keep your order reference for future
-                          enquiries. Payment will only be
-                          confirmed after a real payment
-                          provider has been connected and the
+                          Keep your order reference for future enquiries.
+                          Payment will only be confirmed after a real
+                          payment provider has been connected and the
                           transaction verified.
                         </p>
                       </div>
@@ -844,7 +1069,7 @@ export default function OrderSuccessPage() {
           </>
         )}
 
-        {/* SHARED FOOTER LINKS */}
+        {/* FOOTER LINKS */}
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Link
             href="/"
