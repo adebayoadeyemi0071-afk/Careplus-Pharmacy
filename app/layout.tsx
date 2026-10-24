@@ -1,4 +1,3 @@
-
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 
@@ -10,6 +9,7 @@ import Footer from "@/components/footer/footer";
 import CookieConsent from "@/components/cookies/cookie-consent";
 
 const siteUrl = "https://careplus-pharmacy-nu.vercel.app";
+
 const shareImage = `${siteUrl}/images/careplus-share.png`;
 
 const websiteJsonLd = {
@@ -20,7 +20,7 @@ const websiteJsonLd = {
   name: "CarePlus Pharmacy",
   alternateName: "CarePlus",
   description:
-    "CarePlus Pharmacy's healthcare product catalogue and online shopping experience.",
+    "Explore healthcare product information, medicine categories, wellness essentials, and customer support with CarePlus Pharmacy.",
   inLanguage: "en-NG",
 };
 
@@ -35,12 +35,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
 
   title: {
-    default: "CarePlus Pharmacy | Your Health, Our Priority",
+    default:
+      "CarePlus Pharmacy Nigeria | Medicines & Wellness Products",
     template: "%s | CarePlus Pharmacy",
   },
 
   description:
-    "Explore CarePlus Pharmacy's healthcare product categories, product information, and everyday wellness essentials.",
+    "Explore medicine and healthcare product information, shop wellness essentials, browse product categories, and find customer support with CarePlus Pharmacy.",
 
   applicationName: "CarePlus Pharmacy",
 
@@ -48,28 +49,42 @@ export const metadata: Metadata = {
     google: "PBw2X5xwWePAEAu8v8SYk9KKmUxs37nvXx4LMmcpRcA",
   },
 
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+
   openGraph: {
     type: "website",
     siteName: "CarePlus Pharmacy",
     locale: "en_NG",
-    title: "CarePlus Pharmacy | Your Health, Our Priority",
+    title:
+      "CarePlus Pharmacy Nigeria | Medicines & Wellness Products",
     description:
-      "Explore healthcare products and everyday wellness essentials with CarePlus Pharmacy.",
+      "Explore healthcare products, medicine information, and everyday wellness essentials with CarePlus Pharmacy.",
     images: [
       {
         url: shareImage,
         width: 1200,
         height: 630,
-        alt: "CarePlus Pharmacy — Your Health, Our Priority",
+        alt: "CarePlus Pharmacy — Medicines and Wellness Products",
       },
     ],
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "CarePlus Pharmacy | Your Health, Our Priority",
+    title:
+      "CarePlus Pharmacy Nigeria | Medicines & Wellness Products",
     description:
-      "Explore healthcare products and everyday wellness essentials with CarePlus Pharmacy.",
+      "Explore healthcare products, medicine information, and everyday wellness essentials with CarePlus Pharmacy.",
     images: [shareImage],
   },
 };
@@ -87,7 +102,10 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(websiteJsonLd).replace(/</g, "\\u003c"),
+            __html: JSON.stringify(websiteJsonLd).replace(
+              /</g,
+              "\\u003c"
+            ),
           }}
         />
 
