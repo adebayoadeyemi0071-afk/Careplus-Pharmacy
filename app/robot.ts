@@ -1,4 +1,3 @@
-
 import type { MetadataRoute } from "next";
 
 const SITE_URL = "https://careplus-pharmacy-nu.vercel.app";
@@ -9,13 +8,16 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       disallow: [
-        "/account/",
-        "/auth/",
+        "/account",
+        "/auth",
         "/checkout",
         "/order-success",
         "/prescription-upload",
+        "/prescription-status",
+        "/wishlist",
       ],
     },
+
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }
